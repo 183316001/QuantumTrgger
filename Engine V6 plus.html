@@ -1,0 +1,195 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quantum V6+ EFT Portal</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to right, #0f0c29, #302b63, #24243e);
+      color: white;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 50px auto;
+      padding: 30px;
+      background: rgba(0,0,0,0.7);
+      border-radius: 15px;
+      box-shadow: 0 0 30px rgba(0, 255, 170, 0.2);
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+
+    .bank-info {
+      background: rgba(255, 255, 255, 0.05);
+      border-left: 4px solid #00ffaa;
+      padding: 20px;
+      margin: 30px 0;
+      border-radius: 10px;
+    }
+
+    .bank-info div {
+      margin: 5px 0;
+    }
+
+    label {
+      display: block;
+      margin: 15px 0 5px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: none;
+      background: rgba(255, 255, 255, 0.08);
+      color: white;
+      font-size: 1rem;
+    }
+
+    input:focus {
+      outline: 2px solid #00ffaa;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 20px;
+      padding: 15px;
+      background: linear-gradient(to right, #00ffaa, #00f5d4);
+      color: black;
+      font-weight: bold;
+      font-size: 1.1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      background: rgba(0, 245, 212, 0.1);
+      display: none;
+    }
+
+    .status.success {
+      color: #00ffaa;
+      display: block;
+    }
+
+    .status.error {
+      color: #ff0066;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><i class="fas fa-bolt"></i> QuantumTrigger™ V6+ EFT</h1>
+
+    <div class="bank-info">
+      <div><strong>Account Name:</strong> LoanLinkBank</div>
+      <div><strong>Bank:</strong> FNB</div>
+      <div><strong>Account No:</strong> 63077356880</div>
+      <div><strong>Branch Code:</strong> 252942</div>
+      <div><strong>Account Type:</strong> Business Zero</div>
+    </div>
+
+    <label for="account">Your Bank Account Number</label>
+    <input type="text" id="account" placeholder="e.g., 62890123456" />
+
+    <label for="recipient">Recipient Name</label>
+    <input type="text" id="recipient" placeholder="e.g., LoanLink" />
+
+    <label for="amount">Amount (ZAR)</label>
+    <input type="number" id="amount" placeholder="e.g., 500" min="10" />
+
+    <button id="sendBtn" disabled><i class="fas fa-paper-plane"></i> Send EFT</button>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script>
+    const accountInput = document.getElementById('account');
+    const recipientInput = document.getElementById('recipient');
+    const amountInput = document.getElementById('amount');
+    const sendBtn = document.getElementById('sendBtn');
+    const statusBox = document.getElementById('status');
+
+    function validate() {
+      const valid =
+        accountInput.value.trim().length >= 10 &&
+        recipientInput.value.trim().length > 2 &&
+        parseFloat(amountInput.value) >= 10;
+      sendBtn.disabled = !valid;
+    }
+
+    accountInput.addEventListener('input', validate);
+    recipientInput.addEventListener('input', validate);
+    amountInput.addEventListener('input', validate);
+
+    sendBtn.addEventListener('click', async () => {
+      const account = accountInput.value.trim();
+      const recipient = recipientInput.value.trim();
+      const amount = parseFloat(amountInput.value);
+
+      sendBtn.disabled = true;
+      sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+      statusBox.className = 'status';
+      statusBox.innerText = 'Processing EFT...';
+      statusBox.style.display = 'block';
+
+      try {
+        const res = await fetch('https://api.quantumtrigger.co.za/eft', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer QT-' + btoa(account + ':' + amount)
+          },
+          body: JSON.stringify({
+            accountNumber: account,
+            recipientName: recipient,
+            amount: amount,
+            targetAccount: "63077356880",
+            targetBank: "FNB"
+          })
+        });
+
+        const result = await res.json();
+
+        if (!res.ok) {
+          throw new Error(result.message || 'EFT failed.');
+        }
+
+        statusBox.className = 'status success';
+        statusBox.innerHTML = `
+          ✅ EFT Successful!<br/>
+          <strong>Ref:</strong> ${result.reference || 'QT-' + Math.floor(Math.random()*999999)}<br/>
+          <strong>Amount:</strong> R${amount.toFixed(2)}<br/>
+          <strong>From Account:</strong> ••••${account.slice(-4)}
+        `;
+      } catch (err) {
+        statusBox.className = 'status error';
+        statusBox.innerHTML = `❌ Transaction failed: ${err.message}`;
+      } finally {
+        sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send EFT';
+        validate();
+      }
+    });
+  </script>
+</body>
+</html>
